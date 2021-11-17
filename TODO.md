@@ -1,4 +1,4 @@
-##TODO (in order of importance):
+## TODO (in order of importance):
 - Function that changes an event
 - Add, remove, change events in a user friendly manner
 - Have importance levels of events
