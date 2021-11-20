@@ -1,16 +1,17 @@
-import data, eventfile
+import time
+import data, credits
 
-#eventlist=[]
-
+# How long the progam will wait to make the progam seem cleaner
+delayTime = 0.2
+# Document append variable
 dataA = open('data.py', 'a')
 
 '''Class that creates + manages schedules for a user'''
 class Schedule:
-
   def __init__(self, n: str, e: list):
     self.name = n
     self.events = e
-    # Sees if there is anything in the user's events. If there is nothing, firstTime is toggled, and survey is ran.
+    # Sees if there is anything in the user's events. If there is nothing, firstTime is toggled, and survey() is ran.
     self.firstTime = True
     for i in self.events:
       if len(i) > 0:
@@ -109,25 +110,24 @@ class Schedule:
       else:
         self.display += '\n─────┼' + '───────────┼'*6 + '───────────┤'
       
-      # Increments current[day] up by one if the final hour of the event is passed
+      # Increments current[day] up by one if the final hour of the event is passed, only if there is something inside the current day
       for j in range(7):
-        if i == self.events[j][current[j]][2]:
-          current[j] += 1
+        if len(self.events[j]) != 0:
+          if i == self.events[j][current[j]][2]:
+            current[j] += 1
 
-  # Tries to find an event with the name given. Is case sensitive. Returns all instances of the event when it works; returns False otherwise.
+  # Tries to find an event in a day with the name given. Is case sensitive. Returns all instances of the event when it works; returns False otherwise.
   def findEvent(self, day: int, name: str):
     instances = []
-    # Loops for every day in self.events
-    for i in self.events:
-      # Loops for every event in a selected day
-      for j in i:
-        # Finds if the selected event is the same as 
-        if j[0] == name:
-          instances.append(j)
+    # Loops for every day in the selected day
+    for i in self.events[day]:
+      # Finds if the selected event is the same as the input
+      if i[0] == name:
+        instances.append([day] + i[1:])
     # Runs when instances has no length (ie found nothing)
     if not len(instances):
-      return False
-    return instances
+      return [False]
+    return [True, instances]
 
   # Adds an event to self.events, and puts it in the correct place. Returns a bool reporting if the action was successful or not. 
   def addEvent(self, day: int, name: str, startH: int, endH: int) -> bool:
@@ -135,24 +135,31 @@ class Schedule:
     if startH >= endH:
       return False
     
-    # if endH is less than the first event, then the event wanted to be added will be in the right place and will be slotted in. Also works if there are no events in the selected day.
-    if endH <= self.events[day][0][1] or len(self.events[day]) == 0:
+    # Adds the event if there is nothing inside the day yet.
+    if len(self.events[day]) == 0:
+      self.events[day].append([name, startH, endH])
+      return True
+    # if endH is less than the first event, then the event wanted to be added will be in the right place and will be slotted in.
+    elif endH <= self.events[day][0][1] or len(self.events[day]) == 0:
       self.events[day].insert(0, [name, startH, endH])
       return True
-    # Loops for each item
+    # Loops for each item-1, checks if the event can be slotted in the middle
     for i in range(len(self.events[day]) - 1):
-      print(range(len(self.events[day]) - 1), len(self.events[day]) - 1)
       # Sees if the event that's wanted to be added fits into the hours of the events
       if self.events[day][i][2] <= startH and endH <= self.events[day][i + 1][1]:
         print('b')
         self.events[day].insert(i + 1, [name, startH, endH])
         return True
+    # Checks if the event can be added to the end of the selected day
+    if self.events[day][-1][2] <= startH:
+      self.events[day].append([name, startH, endH])
+      return True
     return False
   
-  # Removes the specified event, returning a bool based on whether something was deleted or not. Use startH if you want to delete a specific item
+  # Removes one instance of the specified event from self.events, returning a bool based on whether something was deleted or not. startH makes the function start from the hour, essentially making the function 
   def removeEvent(self, day: int, name: str, startH: int = 0) -> bool:
     # Sees if the selected day has any events, exits if that is the case (for optimization)
-    if not(self.events[day]):
+    if len(self.events[day]) == 0:
       return False
     
     # Loops for every event in the selected day
@@ -165,43 +172,311 @@ class Schedule:
 
 # Takes information from data.py to be used and updated
 user = Schedule(data.name, data.events)
-'''while user.removeEvent(1, 'SLEEP') == True:
-  pass'''
-print(user.addEvent(6, 'testing', 9, 12))
-user.toString()
-print(user.display)
 
-'''Page related variables/functions directly accessed by menu'''
-# Variable for dividing different pages
+'''Page related variables/functions directly accessed by main loop'''
 divider = '━' + '◦○◦━'*15
+noFind = 'Invalid entry!'
 
-def scheduleView():
-  # Initialized when the program is first ran. Uses info from data.py to decide this. (DOESN'T EXIST YET)
-  def survey():
-    pass
-
-  if not user.firstTime:
-    user.toString()
-    print(user.name + '\'s schedule:\n\n' +
-          user.display + '\n'
-          )
-  else:
-    survey()
+# 'Add event' menu (outside because it is used by scheduleView() and scheduleChange())
+def add():
+  weekStr = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   
+  # Gets the user to input the days that they want an event, and checks if it is a valid input
+  def promptDay():
+    global inpDay
+    while True:
+      inpDay = list(input('\nWhat day(s) do you want this event held? Type integers from 0-6, with each number pertaining to a day in a week (Sunday is 0, Monday is 1, Tuesday is 2…). If you want the event to be on more than one day, then type one of each of the numbers.\n').strip())
+      
+      # Checks to see if the input is valid, converting it into usable data in the process
+      # Variable to see if inpDay can be used
+      valid = True
+      try:
+        # Stores the true/false statement for each day in a week. (eg. if there's an event on sunday, holder[0] = True) Will replace inpDay at the end of the loop.
+        holder = [0]*7
+        # Loops for each item in inpDay
+        for i in range(len(inpDay)):
+          inpDay[i] = int(inpDay[i])
+          if inpDay[i] in (7, 8, 9):
+            valid = False
+            break
+          holder[inpDay[i]] = 1
+      except:
+        print('\n' + noFind)
+        continue
+      
+      if not valid or sum(holder) == 0:
+        print('\n' + noFind)
+        continue
+      else:
+        inpDay = holder
+        break
+  
+  # Gets the user to input the hours that they want an event, and checks if it can be used
+  def promptHour():
+    global inpHour
+    while True:
+      inpHour = input('\nWhat times would you like the event to be held from? Use \"-\" to divide the starting and ending time, and use 24 hour time. (Example: type \"11-15\" if you want to schedule your event to be from 11AM to 3PM.)\n').split('-')
+      # If at any time this breaks, it's because the inputs can't be converted to integers, and it makes the entry invalid.
+      try:
+        for i in range(len(inpHour)):
+          inpHour[i] = inpHour[i].strip()
+          inpHour[i] = int(inpHour[i])
+      except:
+        print('\n' + noFind)
+        continue
+
+      # Sees if inpHour is able to be used in addEvent() from Schedule class
+      if len(inpHour) == 2 and inpHour[0] < inpHour[1] and 0 <= inpHour[0] <= 24 and 0 <= inpHour[1] <= 24:
+        break
+      else:
+        print('\n' + noFind)
+  
+  inpName = input('\nWhat is the name of the event that you would like to add?\n')
+
+  promptDay()
+  
+  promptHour()
+  
+  inpDayStr = ''
+  # Turns inpDay into a readable string
+  for i in range(len(inpDay)):
+    if inpDay[i]:
+      inpDayStr += weekStr[i] + ', '
+  # Removes the ', ' at the end
+  inpDayStr = inpDayStr[:-2]
+
+  # Second subpage
+  while True:
+    print('\nCURRENT SETTINGS\n' +
+        'Event name: ' + inpName + '\n' +
+        'Event day(s): ' + inpDayStr + '\n' +
+        'Event time: ' + str(inpHour[0]) + ':00 – ' + str(inpHour[1]) + ':00\n' +
+        '\n' +
+        '''Options:
+  1. Change event name
+  2. Change event day
+  3. Change event time
+  4. Confirm changes
+  5. Cancel and exit
+    
+Input the number of what you want to access.''')
+    inp = input()
+    
+    # Prevents an error from happening
+    try:
+      if 1 <= int(inp) <= 5: 
+        inp = int(inp)
+        # Changing event name
+        if inp == 1:
+          inpName = input('What would you like to change the name of the event to?\n')
+
+        # Changing event days
+        elif inp == 2:
+          promptDay()
+
+        # Changing event time
+        elif inp == 3:
+          promptHour()
+        
+        # Save changes option
+        elif inp == 4:
+          break
+
+        # Cancel option
+        else: 
+          return
+      else:
+        print('\n' + noFind)
+        continue
+    except:
+      print('\n' + noFind)
+      continue
+
+  # Tells the program if something went wrong with adding an event
+  problem = False
+  # Loops for each day in a week
+  for i in range(7):
+    if inpDay[i]:
+      if not user.addEvent(i, inpName, inpHour[0], inpHour[1]):
+        problem = True
+  # Writes user.events to data.py, so that the data is saved for long-term use
+  dataA.write('\nevents = ' + str(user.events))
+
+  if problem:
+    print('Some or all of your changes were unable to be added. This is due to a scheduling conflict. Please view your schedule, and see which items weren\'t able to be added.\n\nEnter anything to exit.')
+  else:
+    user.toString()
+    print(user.display + '\nYour changes have been saved! Here is your new schedule:\n\nEnter anything to exit.')
+
   input()
 
+# Page that views the schedule
+def scheduleView():
+  # Initialized when the program is first ran. Uses info from data.py to decide this. (DOESN'T EXIST YET, TODO)
+  def survey():
+    user.firstTime = False
+    
+    user.name = input('What is your name?\n')
+    dataA.write('\nname = \'' + str(user.name)+ '\'')
+    
+    # Used to see if add() has been ran yet
+    prompted = False
+    while True:
+      if not prompted:
+        add()
+      prompted = True
+      inp = input('\nWould you like to add another event? (Yes/No)\n')
+      if inp in ('yes', 'y'):
+        prompted = False
+        continue
+      elif inp in ('no', 'n'):
+        break
+      else:
+        print('\n' + noFind)
+
+  if user.firstTime:
+    while True:
+      print('It seems that you don\'t have a schedule yet. Would you like to use our tool to quickly create one? (Yes/No)\n')
+      inp = input().lower()
+      if inp in ('yes', 'y'):
+        survey()
+        break
+      elif inp in ('no', 'n'):
+        user.toString()
+        input('A blank schedule:\n\n' +
+          user.display + '\n'
+          'If the table appears weird, make your window wider.\n' +
+          'Enter anything to exit!\n')
+        break
+      else:
+        print('\n' + noFind)
+  else:
+    user.toString()
+    input(user.name + '\'s schedule:\n\n' +
+          user.display + '\n'
+          'If the table appears weird, make your window wider.\n' +
+          'Enter anything to exit!\n')
+
+# Allows the user to change their schedule. Uses the Schedule class to do this. (TODO)
 def scheduleChange():
-  print()
+  # 'Remove event' menu
+  def remove():
+    # Prompts the user for the day that's wanted to be searched
+    def promptDay():
+      global inpDay, useInt
+      while True:
+        inpDay = input('\nWhich day\'s events do you want to remove? Type \"all\" if you want to delete all events with the name ' + inpName + '. If you want to delete specific days from ' + inpName + ', type integers from 0-6, with each number pertaining to a day in a week (Sunday is 0, Monday is 1, Tuesday is 2…). If you want the event to be on more than one day, then type one of each of the numbers.\n').strip().lower()
+
+        if inpDay == 'all':
+          useInt = False
+          break
+        else:
+          '''Copied from add() function'''
+          # Checks to see if the input is valid, converting it into usable data in the process
+          # Variable to see if inpDay can be used
+          valid = True
+          try:
+            # Converts the string into int, so that it will be easily used in the copied code
+            inpDay = list(inpDay)
+            # Stores the true/false statement for each day in a week. (eg. if there's an event on sunday, holder[0] = True) Will replace inpDay at the end of the loop.
+            holder = [0]*7
+            # Loops for each item in inpDay
+            for i in range(len(inpDay)):
+              inpDay[i] = int(inpDay[i])
+              if inpDay[i] in (7, 8, 9):
+                valid = False
+                break
+              holder[inpDay[i]] = 1
+          except:
+            print('\n' + noFind)
+            continue
+          
+          if not valid or sum(holder) == 0:
+            print('\n' + noFind)
+            continue
+          else:
+            inpDay = holder
+            useInt = True
+            break
+          '''end of copy'''
+
+    inpName = input('\nWhat\'s the name of the event that you want to remove? Input is case sensitive.\n')
+    
+    promptDay()
+
+    # Variable that stores all instances of events named inpName
+    instances = []
+    # Loops for each day in a week
+    for i in range(7):
+
+      # Checks whether or not specific dates have been requested from the user, and if there is anything inside the date
+      if ((not useInt) or (useInt and inpDay[i])) and user.findEvent(i, inpName)[0]:
+        # Saves the events found in that day, then adds it to instances so that the list is 2D instead of 3D
+        raw = user.findEvent(i, inpName)[1]
+        for j in raw:
+          instances.append(j)
+
+    # Runs if no events were found
+    if len(instances) == 0:
+      input('Nothing was found. Try doublechecking the cases of your text, and enter this menu again.\nEnter anything to continue.\n')
+    else:
+      while True:
+        inp = input('\nThe events that you have stated have been found. Would you like to confirm your changes? (Type yes/no)\n').strip().lower()
+        
+        # Deletes all events stated
+        if inp in ('yes', 'y'):
+          for i in instances:
+            user.removeEvent(i[0], inpName, i[1])
+          dataA.write('\nevents = ' + str(user.events))
+          
+          user.toString()
+          print(user.display)
+          input('Your changes has been saved, and your new schedule is above.\nEnter anything to continue.')
+          break
+        # Returns to the menu
+        elif inp in ('no', 'n'):
+          input('Your request has been cancelled.\nEnter anything to continue.')
+          break
+  
+  subpages = {('add', 'a', '1'): add,
+              ('remove', 'r', '2'): remove}
+
+  while True:
+    inp = input(divider + '''\nHow would you like to change your schedule?
+  1. Add an event (add)
+  2. Remove an event (remove)
+  3. Exit this page (exit)
+    
+Use the numbers next to the line, or the text in parentheses to access each item.\n''')
+
+    # Variable used to see if there is one that is referenced in pages dict
+    contains = False
+    if inp in ('exit', 'e', '3'):
+      break
+    for i in subpages:
+      if inp in i:
+        contains = True
+        inp = i
+        break
+    if contains:
+      subpages[i]()
+    else:
+      print('\n' + noFind)
+
+def about():
+  credits.credits();
 
 # Dict of all the accessible subpages
-pages = {'viewschedule': scheduleView,
-         'changeschedule': scheduleChange}
+pages = {('viewschedule', 'view', 'v'): scheduleView,
+         ('changeschedule', 'change', 'c'): scheduleChange,
+         ('about', 'a'): about}
 
-#w.write('users = [\'billy\', \'bob\', \'joe\']')
-#users = ['billy', 'bob', 'joe']
+'''MAIN LOOP'''
 while True:
+  time.sleep(delayTime)
+
   print(divider)
-  print('''Welcome to PROGRAM NAME!
+  print('''Welcome to our schedule tool!
 Access pages by typing the text of what you want to see. (eg. type "About" if you want to see the about page)
 
 Menu: You are here!
@@ -209,29 +484,38 @@ View Schedule: View your schedule
 Change Schedule: Add or remove events from your schedule.
 About: See the point of this program, and the credits.
 Exit: Exit the program, and save your schedule.\n''')
-
   # Changes the user's input so that keywords are less strict
-  input = input().lower().replace(' ', '')
-  if input == 'exit':
+  inp = input().lower().replace(' ', '')
+  # Variable used to see if there is one that is referenced in pages dict
+  contains = False
+
+  if inp in ('exit', 'e'):
     print('\n' + divider)
     break
-    
-  elif input == "about":
-    import credits
-    credits.credits();
 
-  elif not(input in pages):
-    print('\nIt seems that what you inputted isn\'t in the menu list.')
-  # Runs the user's wanted function when all above checks pass
   else:
-    print('\n' + divider)
-    pages[input]()
+    for i in pages:
+      if inp in i:
+        # Signals that the input contains something that the 
+        contains = True
+        inp = i
+        break
+    
+    if contains:
+      print('\n' + divider)
+      pages[inp]()
+    else:
+      print('\n' + noFind)
 
-print("Have a nice day!")
+'''Makes data.py look nicer, then closes files and exits the program'''
 try:
-  #w = open("data.py","w")
-  w.close()
-  a.close()
+  dataA.close()
+
+  dataW = open("data.py","w")
+  dataW.write('name = \'' + str(user.name) + '\'')
+  dataW.write('\nevents = ' + str(user.events))
+  dataW.close()
 except:
   pass
+print("Have a nice day!")
 quit()
