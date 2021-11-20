@@ -1,3 +1,13 @@
+'''
+TODO (in order of importance):
+ -Change events in a user friendly manner
+ -Have importance levels of events
+ -Use something like "import time" and ".sleep()" to make code feel nicer
+ -Have a notification notify the user when an event is about to happen (https://stackoverflow.com/questions/12575708/notification-using-python/45090702)
+ -Fix the bug of table characters sometimes not loading
+ -Allow the user to schedule events that are not on the hour (eg. 18:30-19:15)
+ -Have a way for multiple users to use the same application
+'''
 import time
 import data, credits
 
@@ -357,7 +367,7 @@ def scheduleView():
           'If the table appears weird, make your window wider.\n' +
           'Enter anything to exit!\n')
 
-# Allows the user to change their schedule. Uses the Schedule class to do this. (TODO)
+# Allows the user to change their schedule. Uses the Schedule class to do this.
 def scheduleChange():
   # 'Remove event' menu
   def remove():
@@ -438,20 +448,27 @@ def scheduleChange():
           input('Your request has been cancelled.\nEnter anything to continue.')
           break
   
+  # Adds a way to change the user's name
+  def nameChange():
+    user.name = input('\nWhat is your new name?\n')
+    dataA.write('\nname = \'' + user.name + '\'')
+
   subpages = {('add', 'a', '1'): add,
-              ('remove', 'r', '2'): remove}
+              ('remove', 'r', '2'): remove,
+              ('changename', 'name', 'n', '3'): nameChange}
 
   while True:
     inp = input(divider + '''\nHow would you like to change your schedule?
   1. Add an event (add)
   2. Remove an event (remove)
-  3. Exit this page (exit)
+  3. Change your name (changeName, name)
+  4. Exit this page (exit)
     
 Use the numbers next to the line, or the text in parentheses to access each item.\n''')
 
     # Variable used to see if there is one that is referenced in pages dict
     contains = False
-    if inp in ('exit', 'e', '3'):
+    if inp in ('exit', 'e', '4'):
       break
     for i in subpages:
       if inp in i:
