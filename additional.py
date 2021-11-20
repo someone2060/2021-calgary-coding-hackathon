@@ -67,17 +67,17 @@ def sleep():
     sleep_start=int(input("When do you go to bed? "))
     if(12<=sleep_start<=23):
       if((24-sleep_start+sleep_end)<5):
-        print("Get longer sleep! It's good to get asleep for 6-8 hours.")
+        print("It's good to get asleep for 6-8 hours.")
       elif((24-sleep_start+sleep_end)>9):
-        print("Get shorter sleep! It's good to get asleep for 6-8 hours.")
+        print("It's good to get asleep for 6-8 hours.")
       else:
         badsleep=False
         sleep_period=24-sleep_start+sleep_end
     elif(0<=sleep_start<=11):
       if((sleep_start+sleep_end)<5):
-        print("Get longer sleep! It's good to get asleep for 6-8 hours.")
+        print("It's good to get asleep for 6-8 hours.")
       elif((sleep_start+sleep_end)>9):
-        print("Get shorter sleep! It's good to get asleep for 6-8 hours.")
+        print("It's good to get asleep for 6-8 hours.")
       else:
         badsleep=False
         sleep_period=sleep_start+sleep_end
@@ -204,6 +204,7 @@ while(exist== "y"):
     elif(remaingtime_counter +minicounter == 24):
       print("You work too much.")
       addfun= str(input("Let's have a fun time in the last 15 minutes of task time (y/n)!: "))
+      exist ="n"
     else:
       tryagain = str(input("Do you have any task to do(y/n)?: "))
       exist ="n"
@@ -396,4 +397,3 @@ print("20:00 | ",hour[20])
 print("21:00 | ",hour[21])
 print("22:00 | ",hour[22])
 print("23:00 | ",hour[23])
-
